@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>لعبة X و O - المثلثات</title>
+  <style>
+    body {
+      font-family: 'Tajawal', 'Segoe UI', Tahoma, sans-serif;
+      background: linear-gradient(135deg, #a8e6cf, #dcedc1, #ffd3b6);
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+      min-height: 100vh;
+    }
+    h1 {
+      color: #2c3e50;
+      margin-bottom: 15px;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+    #status {
+      font-size: 24px;
+      margin: 15px 0;
+      color: #c0392b;
+      font-weight: bold;
+      background: rgba(255,255,255,0.7);
+      padding: 8px 20px;
+      border-radius: 10px;
+      display: inline-block;
+    }
+    .game-board {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      gap: 12px;
+      margin: 20px auto;
+      max-width: 330px;
+    }
+    .cell {
+      width: 100px;
+      height: 100px;
+      background: white;
+      border: 3px solid #2980b9;
+      font-size: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 12px;
+      font-weight: bold;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      transition: all 0.2s;
+    }
+    .cell:hover {
+      background-color: #e3f2fd;
+      transform: scale(1.03);
+    }
+    #reset {
+      padding: 10px 25px;
+      font-size: 18px;
+      background: #2980b9;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+      font-weight: bold;
+      box-shadow: 0 3px 5px rgba(0,0,0,0.2);
+    }
+    #reset:hover {
+      background: #1c6ea4;
+    }
+
+    /* Modal للسؤال */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.75);
+      z-index: 1000;
+    }
+    .modal-content {
+      background: white;
+      width: 92%;
+      max-width: 520px;
+      margin: 12% auto;
+      padding: 25px;
+      border-radius: 16px;
+      text-align: right;
+      direction: rtl;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    }
+    .modal h2 {
+      margin-top: 0;
+      color: #1a5276;
+      font-size: 22px;
+    }
+    .option {
+      display: block;
+      margin: 12px 0;
+      padding: 12px;
+      background: #f8f9fa;
+      border: 1px solid #d1e7ff;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .option:hover {
+      background: #e7f3ff;
+    }
+    .option input {
+      margin-left: 10px;
+    }
+    .btn {
+      margin-top: 15px;
+      padding: 11px 28px;
+      background: #27ae60;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 17px;
+      font-weight: bold;
+      box-shadow: 0 3px 5px rgba(0,0,0,0.2);
+    }
+    .btn:hover {
+      background: #219653;
+    }
+    .error {
+      color: #e74c3c;
+      margin-top: 12px;
+      font-weight: bold;
+      min-height: 24px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🎮 لعبة X و O - المثلثات 📐</h1>
+  <div id="status">دور اللاعب: X</div>
+  <div class="game-board" id="board">
+    <div class="cell" data-index="0"></div>
+    <div class="cell" data-index="1"></div>
+    <div class="cell" data-index="2"></div>
+    <div class="cell" data-index="3"></div>
+    <div class="cell" data-index="4"></div>
+    <div class="cell" data-index="5"></div>
+    <div class="cell" data-index="6"></div>
+    <div class="cell" data-index="7"></div>
+    <div class="cell" data-index="8"></div>
+  </div>
+  <button id="reset">إعادة اللعبة</button>
+
+  <!-- نافذة السؤال -->
+  <div id="questionModal" class="modal">
+    <div class="modal-content">
+      <h2 id="modalQuestion">السؤال سيظهر هنا</h2>
+      <form id="questionForm">
+        <div id="optionsContainer"></div>
+        <div id="errorMessage" class="error"></div>
+        <button type="button" class="btn" onclick="submitAnswer()">تأكيد الإجابة</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // ============ 54 سؤالًا: 20 صح/خطأ + 34 اختيار من متعدد ============
+    const allQuestions = [
+      // === أسئلة صح/خطأ (20 سؤالًا) ===
+      { type: "tf", q: "في المثلث متساوي الساقين، الزاويتان عند القاعدة متساويتان.", answer: true },
+      { type: "tf", q: "المثلث مختلف الأضلاع له ثلاث زوايا مختلفة.", answer: true },
+      { type: "tf", q: "مجموع طولي أي ضلعين في المثلث أقل من طول الضلع الثالث.", answer: false },
+      { type: "tf", q: "في المثلث متساوي الأضلاع، جميع الزوايا تساوي 60 درجة.", answer: true },
+      { type: "tf", q: "يمكن رسم مثلث أطوال أضلاعه 2 سم، 3 سم، 6 سم.", answer: false },
+      { type: "tf", q: "العمود النازل من رأس المثلث متساوي الساقين على القاعدة ينصف القاعدة.", answer: true },
+      { type: "tf", q: "المثلث متساوي الأضلاع هو حالة خاصة من المثلث متساوي الساقين.", answer: true },
+      { type: "tf", q: "لرسم مثلث بمعلومية 3 أضلاع نحتاج مسطرة وفرجار.", answer: true },
+      { type: "tf", q: "المثلث الذي له ضلعان متساويان وزاوية رأس 60° هو مثلث متساوي الأضلاع.", answer: true },
+      { type: "tf", q: "يمكن أن يكون للمثلث زاويتان قائمتان.", answer: false },
+      { type: "tf", q: "المثلث متساوي الساقين يمكن أن يكون منفرج الزاوية.", answer: true },
+      { type: "tf", q: "المثلث مختلف الأضلاع لا يمكن أن يكون قائم الزاوية.", answer: false },
+      { type: "tf", q: "في المثلث متساوي الساقين، العمود من الرأس على القاعدة ينصف زاوية الرأس.", answer: true },
+      { type: "tf", q: "مجموع زوايا المثلث يساوي 180 درجة.", answer: true },
+      { type: "tf", q: "يمكن رسم مثلث إذا كان مجموع طولي ضلعين يساوي طول الضلع الثالث.", answer: false },
+      { type: "tf", q: "المثلث متساوي الأضلاع له ثلاث زوايا حادة.", answer: true },
+      { type: "tf", q: "الفرجار يُستخدم لرسم الأضلاع المستقيمة.", answer: false },
+      { type: "tf", q: "المنقلة تُستخدم لقياس الزوايا عند رسم المثلث.", answer: true },
+      { type: "tf", q: "المثلث الذي أطوال أضلاعه 5 سم، 5 سم، 8 سم هو مثلث متساوي الساقين.", answer: true },
+      { type: "tf", q: "المثلث الذي زواياه 50°، 60°، 70° هو مثلث مختلف الأضلاع.", answer: true },
+
+      // === أسئلة اختيار من متعدد (34 سؤالًا) ===
+      { type: "mc", q: "المثلث الذي جميع أضلاعه مختلفة يسمى:", options: ["متساوي الساقين", "مختلف الأضلاع", "متساوي الأضلاع", "قائم"], answer: 1 },
+      { type: "mc", q: "المثلث الذي طولا ساقيه متساويان يسمى:", options: ["مختلف الأضلاع", "متساوي الساقين", "متساوي الأضلاع", "منفرج"], answer: 1 },
+      { type: "mc", q: "في المثلث متساوي الأضلاع، قياس كل زاوية هو:", options: ["30°", "45°", "60°", "90°"], answer: 2 },
+      { type: "mc", q: "لرسم مثلث بمعلومية طول أضلاعه الثلاثة، نستخدم:", options: ["مسطرة ومنقلة", "مسطرة وفرجار", "فرجار فقط", "منقلة فقط"], answer: 1 },
+      { type: "mc", q: "لرسم مثلث بمعلومية ضلعين والزاوية المحصورة بينهما، نستخدم:", options: ["مسطرة وفرجار", "مسطرة ومنقلة", "فرجار ومنقلة", "مسطرة فقط"], answer: 1 },
+      { type: "mc", q: "إذا كانت زاويتا مثلث 70° و70°، فما نوعه؟", options: ["مختلف الأضلاع", "متساوي الساقين", "متساوي الأضلاع", "منفرج"], answer: 1 },
+      { type: "mc", q: "إذا كانت زوايا مثلث 60°، 60°، 60°، فما نوعه؟", options: ["مختلف الأضلاع", "متساوي الساقين", "متساوي الأضلاع", "قائم"], answer: 2 },
+      { type: "mc", q: "كم عدد الأضلاع المتساوية في المثلث متساوي الساقين؟", options: ["1", "2", "3", "لا شيء"], answer: 1 },
+      { type: "mc", q: "إذا كان مثلث متساوي الساقين، وزاوية رأسه 40°، فكم كل زاوية عند القاعدة؟", options: ["60°", "70°", "80°", "50°"], answer: 1 },
+      { type: "mc", q: "إذا كانت زاويتان عند القاعدة في مثلث متساوي الساقين 50°، فكم زاوية الرأس؟", options: ["60°", "70°", "80°", "90°"], answer: 2 },
+      { type: "mc", q: "أطوال أضلاع مثلث: 5 سم، 6 سم، 7 سم. هل يمكن رسمه؟", options: ["نعم", "لا", "مستحيل", "لا يمكن"], answer: 0 },
+      { type: "mc", q: "أطوال أضلاع مثلث: 1 سم، 2 سم، 4 سم. هل يمكن رسمه؟", options: ["نعم", "لا", "يمكن", "لا نعرف"], answer: 1 },
+      { type: "mc", q: "كم عدد الزوايا المتساوية في المثلث متساوي الأضلاع؟", options: ["1", "2", "3", "لا شيء"], answer: 2 },
+      { type: "mc", q: "إذا كانت زاوية الرأس في مثلث متساوي الساقين 20°، فكم كل زاوية عند القاعدة؟", options: ["70°", "80°", "90°", "60°"], answer: 1 },
+      { type: "mc", q: "إذا كانت زاويتان عند القاعدة 80°، فكم زاوية الرأس؟", options: ["10°", "20°", "30°", "40°"], answer: 1 },
+      { type: "mc", q: "المثلث الذي له ضلعان 5 سم و5 سم، والثالث 8 سم هو:", options: ["مختلف الأضلاع", "متساوي الساقين", "متساوي الأضلاع", "قائم"], answer: 1 },
+      { type: "mc", q: "المثلث الذي أطوال أضلاعه 6 سم، 6 سم، 6 سم هو:", options: ["مختلف الأضلاع", "متساوي الساقين", "متساوي الأضلاع", "منفرج"], answer: 2 },
+      { type: "mc", q: "المثلث الذي أطوال أضلاعه 3 سم، 5 سم، 7 سم هو:", options: ["مختلف الأضلاع", "متساوي الساقين", "متساوي الأضلاع", "حاد"], answer: 0 },
+      { type: "mc", q: "عند رسم مثلث بمعلومية ضلعين والزاوية بينهما، نستخدم المنقلة لـ:", options: ["رسم الضلعين", "قياس الزاوية", "رسم القاعدة", "تحديد الرأس"], answer: 1 },
+      { type: "mc", q: "الفرجار يُستخدم في رسم المثلث لمعرفة:", options: ["قياس الزاوية", "طول الضلع", "مكان التقاطع", "الارتفاع"], answer: 2 },
+      { type: "mc", q: "كم عدد الأدوات الأساسية لرسم مثلث بمعلومية 3 أضلاع؟", options: ["1", "2", "3", "4"], answer: 1 },
+      { type: "mc", q: "عند رسم مثلث بمعلومية 3 أضلاع، نبدأ بـ:", options: ["رسم إحدى الزوايا", "رسم أحد الأضلاع", "وضع الفرجار", "حساب الزوايا"], answer: 1 },
+      { type: "mc", q: "أي من التالي يُستخدم لرسم دائرة عند رسم مثلث بمعلومية 3 أضلاع؟", options: ["المسطرة", "المنقلة", "الفرجار", "القلم"], answer: 2 },
+      { type: "mc", q: "إذا كان مثلث متساوي الساقين، والقاعدة 6 سم، فكم طول الجزء من القاعدة بعد النصف؟", options: ["2 سم", "3 سم", "4 سم", "6 سم"], answer: 1 },
+      { type: "mc", q: "في المثلث متساوي الساقين، إذا نزل عمود من الرأس على القاعدة، فإنه يقسم القاعدة إلى:", options: ["جزأين غير متساويين", "جزأين متساويين", "ثلاثة أجزاء", "لا يقسمها"], answer: 1 },
+      { type: "mc", q: "كم عدد الزوايا المتساوية في المثلث متساوي الساقين؟", options: ["1", "2", "3", "لا شيء"], answer: 1 },
+      { type: "mc", q: "أطوال أضلاع مثلث: 7 سم، 10 سم، 5 سم. هل يمكن رسمه؟", options: ["نعم", "لا", "مستحيل", "لا يُعرف"], answer: 0 },
+      { type: "mc", q: "أطوال أضلاع مثلث: 4 سم، 5 سم، 10 سم. هل يمكن رسمه؟", options: ["نعم", "لا", "يمكن", "لا نعرف"], answer: 1 },
+      { type: "mc", q: "العمود النازل من رأس المثلث متساوي الساقين على القاعدة:", options: ["ينصف القاعدة فقط", "ينصف زاوية الرأس فقط", "ينصف القاعدة وينصف زاوية الرأس", "لا ينصف شيئًا"], answer: 2 },
+      { type: "mc", q: "لرسم مثلث بمعلومية زاويتين والضلع المحصور بينهما، نستخدم:", options: ["مسطرة وفرجار", "مسطرة ومنقلة", "فرجار فقط", "منقلة فقط"], answer: 1 },
+      { type: "mc", q: "هل يمكن رسم مثلث أطوال أضلاعه: 3 سم، 4 سم، 8 سم؟", options: ["نعم", "لا", "يعتمد", "لا نعرف"], answer: 1 },
+      { type: "mc", q: "خاصة المثلث تقول: مجموع طولي أي ضلعين ______ من طول الضلع الثالث.", options: ["أصغر", "يساوي", "أكبر", "ضعف"], answer: 2 },
+      { type: "mc", q: "المثلث متساوي الأضلاع هو أيضًا:", options: ["مختلف الأضلاع", "متساوي الساقين", "منفرج", "قائم"], answer: 1 },
+      { type: "mc", q: "ما مجموع قياسات زوايا المثلث؟", options: ["90°", "180°", "360°", "270°"], answer: 1 }
+    ];
+
+    // ============ المتغيرات ============
+    let currentPlayer = "X";
+    let gameBoard = Array(9).fill("");
+    let usedQuestionIndices = [];
+    let currentCellIndex = null;
+    const winningLines = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+
+    // ============ دوال اللعبة ============
+    function getRandomUnusedQuestion() {
+      const unused = allQuestions.map((_, i) => i).filter(i => !usedQuestionIndices.includes(i));
+      if (unused.length === 0) {
+        usedQuestionIndices = [];
+        return getRandomUnusedQuestion();
+      }
+      const randomIndex = unused[Math.floor(Math.random() * unused.length)];
+      usedQuestionIndices.push(randomIndex);
+      return allQuestions[randomIndex];
+    }
+
+    function showModal(cellIndex) {
+      currentCellIndex = cellIndex;
+      const q = getRandomUnusedQuestion();
+      document.getElementById("modalQuestion").textContent = q.q;
+      
+      const container = document.getElementById("optionsContainer");
+      container.innerHTML = "";
+      
+      if (q.type === "tf") {
+        // سؤال صح/خطأ
+        const opts = ["صح", "خطأ"];
+        opts.forEach((text, idx) => {
+          const label = document.createElement("label");
+          label.className = "option";
+          label.innerHTML = `<input type="radio" name="ans" value="${idx}"> ${text}`;
+          container.appendChild(label);
+        });
+      } else {
+        // سؤال اختيار من متعدد
+        q.options.forEach((opt, idx) => {
+          const label = document.createElement("label");
+          label.className = "option";
+          label.innerHTML = `<input type="radio" name="ans" value="${idx}"> ${opt}`;
+          container.appendChild(label);
+        });
+      }
+      
+      document.getElementById("errorMessage").textContent = "";
+      document.getElementById("questionModal").style.display = "block";
+    }
+
+    function submitAnswer() {
+      const selected = document.querySelector('input[name="ans"]:checked');
+      if (!selected) {
+        document.getElementById("errorMessage").textContent = "اختر إجابة أولًا!";
+        return;
+      }
+
+      const lastUsedIndex = usedQuestionIndices[usedQuestionIndices.length - 1];
+      const q = allQuestions[lastUsedIndex];
+      let isCorrect = false;
+
+      if (q.type === "tf") {
+        const userChoice = selected.value === "0"; // 0 = صح → true, 1 = خطأ → false
+        isCorrect = (userChoice === q.answer);
+      } else {
+        isCorrect = (parseInt(selected.value) === q.answer);
+      }
+
+      if (isCorrect) {
+        gameBoard[currentCellIndex] = currentPlayer;
+        document.querySelector(`.cell[data-index="${currentCellIndex}"]`).textContent = currentPlayer;
+        document.getElementById("questionModal").style.display = "none";
+        
+        if (checkWin()) {
+          document.getElementById("status").textContent = `اللاعب ${currentPlayer} فاز! 🎉`;
+          return;
+        }
+        if (!gameBoard.includes("")) {
+          document.getElementById("status").textContent = "تعادل! 🤝";
+          return;
+        }
+
+        currentPlayer = currentPlayer === "X" ? "O" : "X";
+        document.getElementById("status").textContent = `دور اللاعب: ${currentPlayer}`;
+      } else {
+        document.getElementById("errorMessage").textContent = "إجابة خاطئة! حاول مجددًا.";
+      }
+    }
+
+    function checkWin() {
+      return winningLines.some(line => {
+        const [a, b, c] = line;
+        return gameBoard[a] && gameBoard[a] === gameBoard[b] && gameBoard[a] === gameBoard[c];
+      });
+    }
+
+    function resetGame() {
+      currentPlayer = "X";
+      gameBoard = Array(9).fill("");
+      usedQuestionIndices = [];
+      document.querySelectorAll(".cell").forEach(c => c.textContent = "");
+      document.getElementById("status").textContent = "دور اللاعب: X";
+    }
+
+    // ============ ربط الأحداث ============
+    document.querySelectorAll(".cell").forEach(cell => {
+      cell.addEventListener("click", () => {
+        const idx = parseInt(cell.getAttribute("data-index"));
+        if (gameBoard[idx] !== "" || checkWin()) return;
+        showModal(idx);
+      });
+    });
+
+    document.getElementById("reset").addEventListener("click", resetGame);
+  </script>
+
+</body>
+</html>
